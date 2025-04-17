@@ -10,6 +10,7 @@ public class ImGuiRenderer:Overlay
 {
     private GameMain _gameMain;
     private Cube _lastaddedcube;
+    private bool autoRotate;
     public ImGuiRenderer(GameMain gameMain)
     {
         _gameMain = gameMain;
@@ -50,13 +51,35 @@ public class ImGuiRenderer:Overlay
 
                     if (ImGuiNET.ImGui.Button("Reset"))
                     {
-                        _lastaddedcube = null;
+                        autoRotate = false;
+                       _gameMain.RemoveShapes(_lastaddedcube);
+                       _lastaddedcube = null;
                     }
+                    ImGuiNET.ImGui.SameLine();
+                    if (ImGuiNET.ImGui.Button("ResetAll"))
+                    {
+                        _gameMain.RemoveAllShapes();
+                    }
+                    ImGuiNET.ImGui.SameLine();
+                    
+                    if (_lastaddedcube != null)
+                    {
+                        autoRotate = _lastaddedcube.AutoRotate;
+                        if (ImGuiNET.ImGui.Checkbox("Autorotate", ref autoRotate))
+                        {
+                            _lastaddedcube.AutoRotate = autoRotate;
+                        }
+                    }
+                    
                 }
 
                 ImGuiNET.ImGui.EndTabItem();
             }
 
+            if (ImGuiNET.ImGui.Button("Exit"))
+            {
+                Environment.Exit(0);
+            }
             ImGuiNET.ImGui.EndTabBar();
         }
 

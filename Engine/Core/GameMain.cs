@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
@@ -12,7 +13,6 @@ public class GameMain : GameWindow
 {
     private static int width = 640;
     private static int height = 480;
-    private float _angle = 0.0f;
     private Camera.Camera _camera;
     private readonly List<IShape> _shapes = new List<IShape>();
     private readonly object _shapesLock = new object();
@@ -30,6 +30,13 @@ public class GameMain : GameWindow
         })
     { }
 
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        base.OnClosing(e);
+        Environment.Exit(0);
+        
+    }
+
     protected override void OnLoad()
     {
         base.OnLoad();
@@ -44,6 +51,18 @@ public class GameMain : GameWindow
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
         base.OnUpdateFrame(args);
+        lock (_shapesLock)
+        {
+            foreach (var shape in _shapes)
+            {
+                if (shape is not Cube { AutoRotate: true } cube) continue;
+                cube.Angle += 50.0f * (float)args.Time;
+                if (cube.Angle >= 360.0f)
+                {
+                    cube.Angle -= 360.0f;
+                }
+            }
+        }
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)
@@ -61,8 +80,6 @@ public class GameMain : GameWindow
                 shape.Draw();
             }
         }
-
-        _angle += 1.0f;
 
         var error = GL.GetError();
         if (error != ErrorCode.NoError)
@@ -84,8 +101,26 @@ public class GameMain : GameWindow
         lock (_shapesLock)
         {
             
-            Console.WriteLine("Rysowanie sześcianu");
+            Console.WriteLine("Rendering Cube...");
             _shapes.Add(shape);
+        }
+    }
+
+    public void RemoveShapes(IShape shape)
+    {
+        lock (_shapesLock)
+        {
+            Console.WriteLine("Removing cube...");
+            _shapes.Remove(shape);
+        }
+        
+    }
+
+    public void RemoveAllShapes()
+    {
+        lock (_shapesLock)
+        {
+            _shapes.Clear();
         }
     }
 }

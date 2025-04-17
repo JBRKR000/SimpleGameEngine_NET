@@ -9,6 +9,13 @@ public class Cube:IShape
 {
     private Vector3[] _vertices;
     private float _angle;
+    private bool autoRotate;
+
+    public bool AutoRotate
+    {
+        get => autoRotate;
+        set => autoRotate = value;
+    }
 
     public float Angle
     {
