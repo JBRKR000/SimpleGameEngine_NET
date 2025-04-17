@@ -1,12 +1,20 @@
 using System.Drawing;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
+using SomeShit.Engine.Renderer;
 
 namespace SomeShit.Renderer;
 
-public class Cube
+public class Cube:IShape
 {
     private Vector3[] _vertices;
+    private float _angle;
+
+    public float Angle
+    {
+        get => _angle;
+        set => _angle = value;
+    }
 
     public Cube(Vector3[] vertices)
     {
@@ -15,22 +23,21 @@ public class Cube
         _vertices = vertices;
     }
 
-    public void Draw(float angle)
+    public void Draw()
     {
         GL.LoadIdentity();
-        GL.Rotate(angle, 0.0f, 1.0f, 0.0f);
+        GL.Translate(0,0,-4);
+        GL.Rotate(_angle, 0, 1, 0);
         GL.Color3(Color.White);
-        GL.Scale(0.5,0.25,1);
-
-        // Front face
+        GL.Scale(1,1,1);
+        
         GL.Begin(PrimitiveType.LineLoop);
         GL.Vertex3(_vertices[0]);
         GL.Vertex3(_vertices[1]);
         GL.Vertex3(_vertices[2]);
         GL.Vertex3(_vertices[3]);
         GL.End();
-
-        // Back face
+        
         GL.Begin(PrimitiveType.LineLoop);
         GL.Vertex3(_vertices[4]);
         GL.Vertex3(_vertices[5]);
@@ -69,5 +76,7 @@ public class Cube
         GL.Vertex3(_vertices[6]);
         GL.Vertex3(_vertices[7]);
         GL.End();
+    
     }
+    
 }

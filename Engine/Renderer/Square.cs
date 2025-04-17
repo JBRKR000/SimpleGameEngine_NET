@@ -1,9 +1,10 @@
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
+using SomeShit.Engine.Renderer;
 
 namespace SomeShit.Renderer;
 
-public class Square
+public class Square: IShape
 {
     private Vector2 _a;
     private Vector2 _b;
