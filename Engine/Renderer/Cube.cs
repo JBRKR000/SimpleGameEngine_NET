@@ -30,6 +30,17 @@ public class Cube:IShape
         _vertices = vertices;
     }
 
+    public Vector3 TranslateCube(int x, int y, int z)
+    {
+        for (int i = 0; i < _vertices.Length; i++)
+        {
+            _vertices[i].X += x;
+            _vertices[i].Y += y;
+            _vertices[i].Z += z;
+        }
+        return new Vector3(x, y, z);
+    }
+
     public void Draw()
     {
         GL.LoadIdentity();
