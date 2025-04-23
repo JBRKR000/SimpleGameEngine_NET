@@ -1,88 +1,222 @@
+using System.IO;
+using System.Text;
 using ClickableTransparentOverlay;
-using OpenTK.Graphics.OpenGL4;
+using ImGuiNET;
 using OpenTK.Mathematics;
 using SomeShit.Engine.Core;
 using SomeShit.Renderer;
 
-namespace SomeShit.Engine.Renderer;
-
-public class ImGuiRenderer:Overlay
+public class ImGuiRenderer : Overlay
 {
     private GameMain _gameMain;
     private Cube _lastaddedcube;
     private bool autoRotate;
+    private string _consoleInput = string.Empty;
+    private readonly List<string> _consoleOutput = new();
+    private StringWriter _stringWriter;
+
     public ImGuiRenderer(GameMain gameMain)
     {
         _gameMain = gameMain;
+
+        // Przechwytywanie danych z Console.WriteLine
+        _stringWriter = new StringWriter();
+        Console.SetOut(_stringWriter);
     }
-    
+
     protected override void Render()
+{
+   ImGuiNET.ImGui.Begin("Console", ImGuiNET.ImGuiWindowFlags.NoCollapse | ImGuiNET.ImGuiWindowFlags.AlwaysAutoResize);
+ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.WindowBg, new System.Numerics.Vector4(0f, 0f, 0f, 0.7f)); // półprzezroczyste tło
+ImGuiNET.ImGui.PushStyleVar(ImGuiNET.ImGuiStyleVar.FrameRounding, 2.0f);
+ImGuiNET.ImGui.PushStyleVar(ImGuiNET.ImGuiStyleVar.FramePadding, new System.Numerics.Vector2(4, 3));
+
+// Output (scrollowalny)
+ImGuiNET.ImGui.BeginChild("ScrollingRegion", new System.Numerics.Vector2(800, 400), true, ImGuiNET.ImGuiWindowFlags.HorizontalScrollbar);
+lock (_consoleOutput)
+{
+    foreach (var line in _consoleOutput)
     {
-        ImGuiNET.ImGui.Begin("Renderer");
-
-        if (ImGuiNET.ImGui.BeginTabBar("Tabs"))
+        if (line.StartsWith("> ")) // Komenda użytkownika
         {
-            if (ImGuiNET.ImGui.BeginTabItem("Cube"))
+            ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(1f, 1f, 1f, 1f)); // Biały tekst
+            ImGuiNET.ImGui.TextUnformatted(line);
+            ImGuiNET.ImGui.PopStyleColor();
+        }
+        else // Informacja
+        {
+            ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(0f, 1f, 0f, 1f)); // Zielony tekst
+            ImGuiNET.ImGui.TextUnformatted(line);
+            ImGuiNET.ImGui.PopStyleColor();
+        }
+    }
+    if (ImGuiNET.ImGui.GetScrollY() >= ImGuiNET.ImGui.GetScrollMaxY())
+        ImGuiNET.ImGui.SetScrollHereY(1.0f); // auto-scroll na dół
+}
+ImGuiNET.ImGui.EndChild();
+
+ImGuiNET.ImGui.Separator();
+
+// Pole komend
+ImGuiNET.ImGui.PushItemWidth(700);
+ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(1f, 1f, 1f, 1f)); // Biały tekst dla wpisywanego tekstu
+if (ImGuiNET.ImGui.InputText("##ConsoleInput", ref _consoleInput, 256, ImGuiNET.ImGuiInputTextFlags.EnterReturnsTrue))
+{
+    lock (_consoleOutput)
+    {
+        _consoleOutput.Add($"> {_consoleInput}"); // Dodanie wpisanej komendy do outputu
+    }
+    HandleCommand(_consoleInput);
+    _consoleInput = string.Empty;
+}
+ImGuiNET.ImGui.PopStyleColor();
+ImGuiNET.ImGui.PopItemWidth();
+ImGuiNET.ImGui.PopStyleColor();
+ImGuiNET.ImGui.PopStyleVar(2);
+ImGuiNET.ImGui.End();
+    UpdateConsoleOutput();
+}
+
+
+    private void UpdateConsoleOutput()
+    {
+        lock (_consoleOutput)
+        {
+            var newOutput = _stringWriter.ToString();
+            if (!string.IsNullOrEmpty(newOutput))
             {
-                if (ImGuiNET.ImGui.Button("Add Cube"))
-                {
-                    var cube = new Cube(new Vector3[]
-                    {
-                        new Vector3(-1, -1, -1),
-                        new Vector3(1, -1, -1),
-                        new Vector3(1, 1, -1),
-                        new Vector3(-1, 1, -1),
-                        new Vector3(-1, -1, 1),
-                        new Vector3(1, -1, 1),
-                        new Vector3(1, 1, 1),
-                        new Vector3(-1, 1, 1)
-                    });
-                    _gameMain.AddShape(cube);
-                    _lastaddedcube = cube;
-                }
+                _consoleOutput.AddRange(newOutput.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+                _stringWriter.GetStringBuilder().Clear();
+            }
+        }
+    }
 
-                if (_lastaddedcube != null)
-                {
-                    float angle = _lastaddedcube.Angle;
-                    if (ImGuiNET.ImGui.SliderFloat("Rotation Angle", ref angle, 0.0f, 360.0f))
-                    {
-                        _lastaddedcube.Angle = angle;
-                    }
+    private void AddCube()
+    {
+        var cube = new Cube(new Vector3[]
+        {
+            new Vector3(-1, -1, -1),
+            new Vector3(1, -1, -1),
+            new Vector3(1, 1, -1),
+            new Vector3(-1, 1, -1),
+            new Vector3(-1, -1, 1),
+            new Vector3(1, -1, 1),
+            new Vector3(1, 1, 1),
+            new Vector3(-1, 1, 1)
+        });
+        _gameMain.AddShape(cube);
+        _lastaddedcube = cube;
+        Console.WriteLine("Cube added.");
+    }
 
-                    if (ImGuiNET.ImGui.Button("Reset"))
-                    {
-                        autoRotate = false;
-                       _gameMain.RemoveShapes(_lastaddedcube);
-                       _lastaddedcube = null;
-                    }
-                    ImGuiNET.ImGui.SameLine();
-                    if (ImGuiNET.ImGui.Button("ResetAll"))
-                    {
-                        _gameMain.RemoveAllShapes();
-                    }
-                    ImGuiNET.ImGui.SameLine();
-                    
+    private void ResetLastCube()
+    {
+        if (_lastaddedcube != null)
+        {
+            autoRotate = false;
+            _gameMain.RemoveShapes(_lastaddedcube);
+            _lastaddedcube = null;
+            Console.WriteLine("Last cube reset.");
+        }
+    }
+
+    private void ResetAllCubes()
+    {
+        _gameMain.RemoveAllShapes();
+        _lastaddedcube = null;
+        Console.WriteLine("All cubes reset.");
+    }
+
+    private void ExitApplication()
+    {
+        Console.WriteLine("Exiting application...");
+        Environment.Exit(0);
+    }
+
+    private void HandleCommand(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command)) return;
+
+        var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var mainCommand = parts[0].ToLower();
+
+        switch (mainCommand)
+        {
+            case "cube":
+                AddCube();
+                break;
+            
+            case "help":
+                Console.WriteLine("Available commands:");
+                Console.WriteLine("  cube - Add a new cube");
+                Console.WriteLine("  setangle <value> - Set rotation angle for the last added cube");
+                Console.WriteLine("  autorotate <true/false> - Enable/disable autorotate for the last added cube");
+                Console.WriteLine("  reset - Remove the last added cube");
+                Console.WriteLine("  resetall - Remove all cubes");
+                Console.WriteLine("  clear - Clear the console output");
+                Console.WriteLine("  exit - Exit the application");
+                break;
+
+            case "setangle":
+                if (parts.Length > 1 && float.TryParse(parts[1], out var angle))
+                {
                     if (_lastaddedcube != null)
                     {
-                        autoRotate = _lastaddedcube.AutoRotate;
-                        if (ImGuiNET.ImGui.Checkbox("Autorotate", ref autoRotate))
-                        {
-                            _lastaddedcube.AutoRotate = autoRotate;
-                        }
+                        _lastaddedcube.Angle = angle;
+                        Console.WriteLine($"Rotation angle set to {angle}");
                     }
-                    
+                    else
+                    {
+                        Console.WriteLine("No cube to set angle for.");
+                    }
                 }
+                else
+                {
+                    Console.WriteLine("Invalid angle value. Usage: setangle <value>");
+                }
+                break;
 
-                ImGuiNET.ImGui.EndTabItem();
-            }
+            case "autorotate":
+                if (parts.Length > 1 && bool.TryParse(parts[1], out var rotate))
+                {
+                    if (_lastaddedcube != null)
+                    {
+                        _lastaddedcube.AutoRotate = rotate;
+                        Console.WriteLine($"Autorotate set to {rotate}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("No cube to set autorotate for.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Invalid value. Usage: autorotate <true/false>");
+                }
+                break;
 
-            if (ImGuiNET.ImGui.Button("Exit"))
-            {
-                Environment.Exit(0);
-            }
-            ImGuiNET.ImGui.EndTabBar();
+            case "reset":
+                ResetLastCube();
+                break;
+
+            case "resetall":
+                ResetAllCubes();
+                break;
+
+            case "exit" or "quit":
+                ExitApplication();
+                break;
+            case "clear":
+                lock (_consoleOutput)
+                {
+                    _consoleOutput.Clear();
+                }
+                Console.WriteLine("Console cleared.");
+                break;
+
+            default:
+                Console.WriteLine($"Unknown command: {command}. Type 'help' for a list of commands.");
+                break;
         }
-
-        ImGuiNET.ImGui.End();
     }
 }
