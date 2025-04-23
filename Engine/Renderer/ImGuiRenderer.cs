@@ -14,6 +14,7 @@ public class ImGuiRenderer : Overlay
     private string _consoleInput = string.Empty;
     private readonly List<string> _consoleOutput = new();
     private StringWriter _stringWriter;
+    private bool _isConsoleVisible = true;
 
     public ImGuiRenderer(GameMain gameMain)
     {
@@ -25,58 +26,76 @@ public class ImGuiRenderer : Overlay
     }
 
     protected override void Render()
-{
-   ImGuiNET.ImGui.Begin("Console", ImGuiNET.ImGuiWindowFlags.NoCollapse | ImGuiNET.ImGuiWindowFlags.AlwaysAutoResize);
-ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.WindowBg, new System.Numerics.Vector4(0f, 0f, 0f, 0.7f)); // półprzezroczyste tło
-ImGuiNET.ImGui.PushStyleVar(ImGuiNET.ImGuiStyleVar.FrameRounding, 2.0f);
-ImGuiNET.ImGui.PushStyleVar(ImGuiNET.ImGuiStyleVar.FramePadding, new System.Numerics.Vector2(4, 3));
-
-// Output (scrollowalny)
-ImGuiNET.ImGui.BeginChild("ScrollingRegion", new System.Numerics.Vector2(800, 400), true, ImGuiNET.ImGuiWindowFlags.HorizontalScrollbar);
-lock (_consoleOutput)
-{
-    foreach (var line in _consoleOutput)
     {
-        if (line.StartsWith("> ")) // Komenda użytkownika
+        if (_isConsoleVisible)
         {
-            ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(1f, 1f, 1f, 1f)); // Biały tekst
-            ImGuiNET.ImGui.TextUnformatted(line);
+            ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.WindowBg, new System.Numerics.Vector4(0f, 0f, 0f, 0.7f));
+            ImGuiNET.ImGui.PushStyleVar(ImGuiNET.ImGuiStyleVar.FrameRounding, 2.0f);
+            ImGuiNET.ImGui.PushStyleVar(ImGuiNET.ImGuiStyleVar.FramePadding, new System.Numerics.Vector2(4, 3));
+
+            ImGuiNET.ImGui.Begin("Engine Console by JBRKR", ref _isConsoleVisible, ImGuiNET.ImGuiWindowFlags.NoCollapse | ImGuiNET.ImGuiWindowFlags.AlwaysAutoResize);
+
+            // Output (scrollowalny)
+            ImGuiNET.ImGui.BeginChild("ScrollingRegion", new System.Numerics.Vector2(800, 400), true, ImGuiNET.ImGuiWindowFlags.HorizontalScrollbar);
+            lock (_consoleOutput)
+            {
+                foreach (var line in _consoleOutput)
+                {
+                    if (line.StartsWith("> ")) // Komenda użytkownika
+                    {
+                        ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(1f, 1f, 1f, 1f)); // Biały tekst
+                        ImGuiNET.ImGui.TextUnformatted(line);
+                        ImGuiNET.ImGui.PopStyleColor();
+                    }
+                    else // Informacja
+                    {
+                        ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(0f, 1f, 0f, 1f)); // Zielony tekst
+                        ImGuiNET.ImGui.TextUnformatted(line);
+                        ImGuiNET.ImGui.PopStyleColor();
+                    }
+                }
+                if (ImGuiNET.ImGui.GetScrollY() >= ImGuiNET.ImGui.GetScrollMaxY())
+                    ImGuiNET.ImGui.SetScrollHereY(1.0f); // auto-scroll na dół
+            }
+            ImGuiNET.ImGui.EndChild();
+
+            ImGuiNET.ImGui.Separator();
+
+            // Pole komend
+            ImGuiNET.ImGui.PushItemWidth(700);
+            ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(1f, 1f, 1f, 1f)); // Biały tekst dla wpisywanego tekstu
+            if (ImGuiNET.ImGui.InputText("##ConsoleInput", ref _consoleInput, 256, ImGuiNET.ImGuiInputTextFlags.EnterReturnsTrue))
+            {
+                lock (_consoleOutput)
+                {
+                    _consoleOutput.Add($"> {_consoleInput}"); // Dodanie wpisanej komendy do outputu
+                }
+                HandleCommand(_consoleInput);
+                _consoleInput = string.Empty;
+
+                // Utrzymanie fokusu na polu tekstowym
+                ImGuiNET.ImGui.SetKeyboardFocusHere(-1);
+            }
             ImGuiNET.ImGui.PopStyleColor();
+            ImGuiNET.ImGui.PopItemWidth();
+
+            ImGuiNET.ImGui.PopStyleColor();
+            ImGuiNET.ImGui.PopStyleVar(2);
+            ImGuiNET.ImGui.End();
         }
-        else // Informacja
+        else
         {
-            ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(0f, 1f, 0f, 1f)); // Zielony tekst
-            ImGuiNET.ImGui.TextUnformatted(line);
-            ImGuiNET.ImGui.PopStyleColor();
+            // Przycisk do przywrócenia okna
+            ImGuiNET.ImGui.Begin("Console Toggle", ImGuiNET.ImGuiWindowFlags.AlwaysAutoResize | ImGuiNET.ImGuiWindowFlags.NoCollapse);
+            if (ImGuiNET.ImGui.Button("Show Console"))
+            {
+                _isConsoleVisible = true;
+            }
+            ImGuiNET.ImGui.End();
         }
+
+        UpdateConsoleOutput();
     }
-    if (ImGuiNET.ImGui.GetScrollY() >= ImGuiNET.ImGui.GetScrollMaxY())
-        ImGuiNET.ImGui.SetScrollHereY(1.0f); // auto-scroll na dół
-}
-ImGuiNET.ImGui.EndChild();
-
-ImGuiNET.ImGui.Separator();
-
-// Pole komend
-ImGuiNET.ImGui.PushItemWidth(700);
-ImGuiNET.ImGui.PushStyleColor(ImGuiNET.ImGuiCol.Text, new System.Numerics.Vector4(1f, 1f, 1f, 1f)); // Biały tekst dla wpisywanego tekstu
-if (ImGuiNET.ImGui.InputText("##ConsoleInput", ref _consoleInput, 256, ImGuiNET.ImGuiInputTextFlags.EnterReturnsTrue))
-{
-    lock (_consoleOutput)
-    {
-        _consoleOutput.Add($"> {_consoleInput}"); // Dodanie wpisanej komendy do outputu
-    }
-    HandleCommand(_consoleInput);
-    _consoleInput = string.Empty;
-}
-ImGuiNET.ImGui.PopStyleColor();
-ImGuiNET.ImGui.PopItemWidth();
-ImGuiNET.ImGui.PopStyleColor();
-ImGuiNET.ImGui.PopStyleVar(2);
-ImGuiNET.ImGui.End();
-    UpdateConsoleOutput();
-}
-
 
     private void UpdateConsoleOutput()
     {
@@ -145,7 +164,7 @@ ImGuiNET.ImGui.End();
             case "cube":
                 AddCube();
                 break;
-            
+
             case "help":
                 Console.WriteLine("Available commands:");
                 Console.WriteLine("  cube - Add a new cube");
